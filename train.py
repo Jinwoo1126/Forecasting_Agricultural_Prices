@@ -24,6 +24,7 @@ from src.utils import (
     extract_year_month,
     price_agg,
     price_log,
+    sliding_window,
     add_fourier_features,
     NMAE,
 )
@@ -32,6 +33,7 @@ from src.model import (
     worker_init_fn,
     Data,
     Nlinear,
+    custom_linear,
     CatBoost_Forecast,
     XGB_Forecast,
     RandomForest_Forecast,
@@ -43,16 +45,7 @@ from src.model import (
 set_seed(42)
 warnings.filterwarnings("ignore", category=UserWarning)
 
-def sliding_window(data, look_back, n_steps):
-    X, y = [], []
-    num_features = data.shape[1]  # Get the number of features
 
-    for i in range(len(data) - look_back - n_steps + 1):
-        # Use the correct shape for X based on look_back and num_features
-        X.append(data[i:(i + look_back)].values.reshape(look_back, num_features))
-        y.append(data[(i + look_back):(i + look_back + n_steps)]['log_평균가격(원)'].values)
-
-    return np.array(X, dtype='float32'), np.array(y, dtype='float32')
 
 if __name__ == '__main__':
     config = json.load(open('config.json'))
@@ -94,8 +87,6 @@ if __name__ == '__main__':
 
 
     for item in filter_conditions.keys():
-        if item != '양파':
-            continue
         item_condition = filter_conditions[item]
         target_train_df = train_df[
             (train_df['품목명'] == item) &
@@ -103,7 +94,6 @@ if __name__ == '__main__':
             (train_df['거래단위'] == item_condition['거래단위']) &
             (train_df['등급'] == item_condition['등급'])
             ].copy()
-        
 
         if item in ['건고추', '사과', '깐마늘(국산)']:
             ## NLinear Model
@@ -253,8 +243,8 @@ if __name__ == '__main__':
                     joblib.dump(model, model_save_path)
 
 
-        if item == '양파':
-            # FE
+        if item in ['양파', '배', '상추', '대파']:
+            # F파
             target_train_df = extract_year_month(target_train_df)
             agg_df, target_train_df = price_agg(target_train_df)
             target_train_df = add_fourier_features(target_train_df)
@@ -263,6 +253,7 @@ if __name__ == '__main__':
             n_splits = 10
             kfold = KFold(n_splits=n_splits, random_state=42, shuffle=True)
             x_, y_ = sliding_window(target_train_df[target_col], 9, 3)
+
             loss_list_ = []
             for idx, (train_index, valid_index) in enumerate(kfold.split(x_)):
                 train_x = x_[train_index]
@@ -273,7 +264,7 @@ if __name__ == '__main__':
                 train_ds = Data(train_x, train_y)
                 train_dl = DataLoader(
                     train_ds,
-                    batch_size = args.batch_size,
+                    batch_size = config['model_params'][item]['Customlinear']['batch_size'],
                     shuffle=True,
                     worker_init_fn=worker_init_fn,
                     generator=torch.Generator().manual_seed(42),
@@ -288,11 +279,11 @@ if __name__ == '__main__':
                     generator=torch.Generator().manual_seed(42)
                     )
                 torch.manual_seed(42)
-                model = custom_linear(args)
-                optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+                model = custom_linear(config['model_params'][item]['Customlinear'])
+                optimizer = torch.optim.Adam(model.parameters(), lr=config['model_params'][item]['Customlinear']['lr'])
                 max_loss = 999999999
 
-                for epoch in tqdm(range(1, args.epoch+1)):
+                for epoch in tqdm(range(1, config['model_params'][item]['Customlinear']['epoch']+1)):
                     loss_list = []
                     model.train()
 

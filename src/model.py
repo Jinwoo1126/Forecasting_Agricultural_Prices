@@ -27,11 +27,38 @@ class NaiveForecaster:
 
     def predict(self, steps=1):
         return [self.last_value] * self.steps
+
+
+class moving_avg(torch.nn.Module):
+    def __init__(self, kernel_size, stride):
+        super(moving_avg, self).__init__()
+        self.kernel_size = kernel_size
+        self.avg = torch.nn.AvgPool1d(kernel_size=kernel_size, stride=stride, padding=0)
+
+    def forward(self, x):
+        front = x[:, 0:1, :].repeat(1, (self.kernel_size - 1) // 2, 1)
+        end = x[:, -1:, :].repeat(1, (self.kernel_size - 1) // 2, 1)
+        x = torch.cat([front, x, end], dim=1)
+        x = self.avg(x.permute(0, 2, 1))
+        x = x.permute(0, 2, 1)
+        return x
     
 
 def worker_init_fn(worker_id):
     np.random.seed(42 + worker_id)
     random.seed(42 + worker_id)
+
+
+class series_decomp(torch.nn.Module):
+    def __init__(self, kernel_size):
+        super(series_decomp, self).__init__()
+        self.moving_avg = moving_avg(kernel_size, stride=1)
+
+    def forward(self, x):
+        moving_mean = self.moving_avg(x)
+        residual = x - moving_mean
+        return moving_mean, residual
+
 
 class Data(Dataset):
     def __init__(self, x, y):
@@ -79,11 +106,11 @@ class Nlinear(torch.nn.Module):
 class custom_linear(torch.nn.Module):
     def __init__(self, args):
         super(custom_linear, self).__init__()
-        self.window_size = args.ltsf_window_size
-        self.forcast_size = args.output_step
-        self.individual = args.individual
-        self.channels = args.num_item
-        self.decompsition = series_decomp(args.kernel_size)
+        self.window_size = args['ltsf_window_size']
+        self.forcast_size = args['output_step']
+        self.individual = args['individual']
+        self.channels = args['num_item']
+        self.decompsition = series_decomp(args['kernel_size'])
         self.Linear_Seasonal = torch.nn.ModuleList()
         self.Linear_Trend = torch.nn.ModuleList()
         for i in range(self.channels):

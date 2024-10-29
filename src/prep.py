@@ -206,7 +206,8 @@ def fe_autogluon(df, train=True, item= None, t= None):
     for i in range(step):
         df_[f'price_lag{i}'] = df_['평균가격(원)'].shift(i)
         if item in ['대파(일반)','양파','배추','감자 수미']:
-            df_[f'price_ratio{i}'] = df_[f'price_lag{i}'] / df_['평년 평균가격(원) Common Year SOON'].shift(i)
+            df_[f'price_ratio{i}'] = df_[f'price_lag{i}'] / df_['평년 평균가격(원)'].shift(i)
+
     k = 3 # window size
     df_['price_mean0']=df_['평균가격(원)'].rolling(k, min_periods=1, center=True).mean()
     mean_step = 6
@@ -219,6 +220,6 @@ def fe_autogluon(df, train=True, item= None, t= None):
     df_['Month_cos'] = np.cos(2 * np.pi * df_['Month'])
     if t:
         df_[f'target_price_{t}'] = df_['평균가격(원)'].shift(-t)
-    df_.drop(['Month','평년 평균가격(원) Common Year SOON','평균가격(원)'], axis=1, inplace=True)
+    df_.drop(['Month','평년 평균가격(원)','평균가격(원)'], axis=1, inplace=True)
     
     return df_.dropna().reset_index(drop=True)

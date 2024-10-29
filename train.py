@@ -11,6 +11,7 @@ import numpy as np
 from tqdm import tqdm
 from sklearn.model_selection import KFold
 from torch.utils.data import Dataset, DataLoader
+from easydict import EasyDict
 
 from src.prep import (
     Fluctuation_Probability, 
@@ -49,7 +50,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 
 if __name__ == '__main__':
-    config = json.load(open('config.json'))
+    config = EasyDict(json.load(open('config.json')))
 
     root_path = config['data_dir']
 
@@ -64,8 +65,8 @@ if __name__ == '__main__':
 
     prob_dict = Fluctuation_Probability(train_df, config).get_fluctuation_probability()
     
-    os.makedirs(os.path.join(root_path,'saved_model'),exist_ok=True)
-    saved_path = os.path.join(root_path,'saved_model')
+    os.makedirs(os.path.join('./','saved_model'),exist_ok=True)
+    saved_path = os.path.join('./','saved_model')
     
     ## train
     filter_conditions = {
@@ -90,6 +91,7 @@ if __name__ == '__main__':
 
 
     for item in filter_conditions.keys():
+        print("==",item,"==")
         item_condition = filter_conditions[item]
         target_train_df = train_df[
             (train_df['품목명'] == item) &
@@ -112,7 +114,7 @@ if __name__ == '__main__':
                 now_train_df = now_train_df[train_col + [f'target_price_{step}']]
 
                 train_data = TabularDataset(now_train_df.astype(float))
-                model = TabularPredictor(label=f'target_price_{step}', eval_metric='mean_absolute_percentage_error',verbosity=1, problem_type='regression')
+                model = TabularPredictor(label=f'target_price_{step}', eval_metric='mean_absolute_percentage_error',verbosity=1, problem_type='regression', path= os.path.join(item_model_save_path,'autogluon_result'))
                 model.fit(train_data,
                         presets='medium_quality',
                         time_limit=240,

@@ -16,3 +16,9 @@ src/__pycache__/
 # catboost_info
 catboost_info/
 .DS_Store
+saved_model/
+AutogluonModels/
+*.csv
+
+train/
+test/

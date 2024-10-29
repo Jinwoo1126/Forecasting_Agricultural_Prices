@@ -1,5 +1,18 @@
 # [Dacon] BreadcrumbsForecasting_Agricultural_Prices
 
+## 어떻게 데이터 저장할지?
+- 현재 디렉토리에 아래와 같이 저장
+```
+    root_path ('./')
+    - train
+    -- 어쩌고
+    - test
+    -- 저쩌고
+    - sample_submission.csv
+    - inference.py
+    - train.py
+
+```
 ## 개발환경
 - Google colab (OS Linux)
 ```
@@ -47,4 +60,8 @@
 ```
 
 4. Inference by using trained model in this implementation
-- 먼저 `inference.py` 내의 68번째줄 pretrained_path의 위치를 
+- 먼저 `inference.py` 내의 72번째줄 pretrained_path 변수를 아래와 같이 변경한다.
+```
+    pretrained_path = os.path.join(root_path, 'saved_model')
+    # pretrained_path = os.path.join( './' , 'pretrained_model')
+```

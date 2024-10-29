@@ -1,5 +1,5 @@
 {
-    "data_dir" : "data",
+    "data_dir" : "./",
     "seed" : 42,
     "mapping_table" : {
         "대파(일반)" : {

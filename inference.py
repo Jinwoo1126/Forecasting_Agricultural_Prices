@@ -53,9 +53,9 @@ filter_conditions = {
     '깐마늘(국산)': {'품종명': ['깐마늘(국산)'], '거래단위': '20kg', '등급': '상품'},
     '무': {'품종명': [None], '거래단위': '20키로상자', '등급': '상'},
     '상추': {'품종명': ['청'], '거래단위': '100g', '등급': '상품'},
-    '배추': {'품종명': [None], '거래단위': '10키로망대', '등급': '상'},
     '양파': {'품종명': [None], '거래단위': '1키로', '등급': '상'},
-    '대파(일반)': {'품종명': [None], '거래단위': '1키로단', '등급': '상'}
+    '대파(일반)': {'품종명': [None], '거래단위': '1키로단', '등급': '상'},
+    '배추': {'품종명': [None], '거래단위': '10키로망대', '등급': '상'},
 }
 
 target_col = '평균가격(원)'
@@ -63,20 +63,22 @@ test_loss_list = []
 
 
 if __name__=='__main__':
-    # config = json.load(open('config.json'))
+    config = json.load(open('config.json'))
 
-    root_path = './'
-    test_df_path = os.path.join(root_path,'data','test')
-    train_df_path = os.path.join(root_path,'data','train')
+    root_path = config['data_dir']
+    test_df_path = os.path.join(root_path,'test')
+    train_df_path = os.path.join(root_path,'train')
     
-    pretrained_path = os.path.join(root_path, 'pretrained_model')
+    # pretrained_path = os.path.join(root_path, 'saved_model')
+    pretrained_path = os.path.join( './' , 'pretrained_model')
 
-    submission_df = pd.read_csv(os.path.join(root_path,'data','sample_submission.csv'))
+    submission_df = pd.read_csv(os.path.join(root_path,'sample_submission.csv'))
 
     train_1 = pd.read_csv(os.path.join(train_df_path,'train_1.csv'))
     train_2 = pd.read_csv(os.path.join(train_df_path,'train_2.csv'))
     train_df = process_data(train_1, train_2)
-    
+    prob_dict = Fluctuation_Probability(train_df, config).get_fluctuation_probability()
+
     for file in sorted(os.listdir(test_df_path)):
         if '_1.csv' in file:
             prefix_file = file.split("_1.csv")[0]
@@ -121,7 +123,7 @@ if __name__=='__main__':
                     cur_preds = []
                     for step in [1,2,3]:
                         model_save_path = f'{item}_autogluon_step{step}.pkl'
-                        model = joblib.load(os.path.join(pretrained_path,model_save_path))
+                        model = joblib.load(os.path.join(pretrained_item_path,model_save_path))
                         tree_traget_col = [f'target_price_{step}']
                         fe_target_test_df = fe_autogluon(target_test_df, train=False,item=item)
                         pred_feature_idx = [col for col in fe_target_test_df.columns if col not in cat_col + tree_traget_col]
@@ -136,9 +138,9 @@ if __name__=='__main__':
                     '배': [0., 0., 0.65, 0.35],
                     '양파': [0.3, 0.0, 0.15, 0.55],
                     '대파(일반)':[0.1, 0.1, 0.4, 0.4],
-                    '무':[0.,0.,0.,1],
+                    '무':[1.,0.,0.,0],
                 }
-                if item in ['상추','배','양파','대파(일반)']:
+                if item in ['상추','배','양파','대파(일반)','무']:
                     args = EasyDict({
                         'ltsf_window_size': 9,
                         'output_step': 3,
@@ -163,7 +165,7 @@ if __name__=='__main__':
                     target_test_df = pd.merge(target_test_df, agg_df, on=['월','순'], how='left')
                     target_test_df = add_fourier_features(target_test_df)
                     target_test_df = price_log(target_test_df, target_col)
-                    extra_x_, _= sliding_window(target_test_df[extra_hist_col], 9, 0)
+                    # extra_x_, _= sliding_window(target_test_df[extra_hist_col], 9, 0)
 
                     if 'event' in fe_target_test_df.columns:
                         fe_target_test_df['event'] = fe_target_test_df['event'].astype('int')
@@ -179,9 +181,9 @@ if __name__=='__main__':
                         cat_col = ['년도', '월', '순', 'season']
 
                     # Nlinear
-                    if item_ensemble_weight_list[0] > 0.:
+                    if item_ensemble_weight_list[3] > 0.:
                         test_x, test_y = sliding_window(target_test_df[target_col], 9, 0)
-                        test_ds = Data(test_x, extra_x_, test_y)
+                        test_ds = Data(test_x, test_y)
 
                         test_dl = DataLoader(
                             test_ds,
@@ -194,14 +196,14 @@ if __name__=='__main__':
                             model.load_state_dict(torch.load(os.path.join(pretrained_item_path,f'{item}_fold{fold+1}_custom_linear_model.pth'), weights_only=True))
                             model.eval()
                             with torch.no_grad():
-                                for data, extra_data, target in test_dl:
+                                for data, target in test_dl:
                                     custom_linear_prediction += model(data).numpy().reshape(-1)/n_splits
                         custom_linear_prediction = np.array(custom_linear_prediction)
                     else: 
                         custom_linear_prediction = 0
 
                     # XGB
-                    if item_ensemble_weight_list[1] > 0.:
+                    if item_ensemble_weight_list[2] > 0.:
                         xgb_pred = []
                         for step in [1,2,3]:
                             xgb_pred_ = 0
@@ -214,7 +216,7 @@ if __name__=='__main__':
                         xgb_pred=0
 
                     # LGB
-                    if item_ensemble_weight_list[2] > 0.:
+                    if item_ensemble_weight_list[1] > 0.:
                         lgb_pred = []
                         for step in [1,2,3]:
                             lgb_pred_ = 0
@@ -227,23 +229,23 @@ if __name__=='__main__':
                         lgb_pred=0
 
                     # CAT
-                    if item_ensemble_weight_list[3] > 0.:
+                    if item_ensemble_weight_list[0] > 0.:
                         cat_pred = []
                         for step in [1,2,3]:
                             cat_pred_ = 0
                             for i in range(1, n_splits+1):
-                                if item == '무': model = joblib.load(f'cat_{item}_fold{i}_step{step}.pkl')
-                                else: model = joblib.load(f'cat_{item}_fold{idx+1}_step{step}.pkl')
+                                if item == '무': model = joblib.load(os.path.join(pretrained_item_path,f'{item}_cat_fold{i}_step{step}.pkl'))
+                                else: model = joblib.load(os.path.join(pretrained_item_path,f'cat_{item}_fold{idx+1}_step{step}.pkl'))
                                 cat_pred_ += np.expm1(model.predict(fe_target_test_df.loc[0:, tree_feature])[0])/n_splits
                             cat_pred.append(cat_pred_)
                         cat_pred = np.array(cat_pred)
                     else:
                         cat_pred=0
                     
-                    ensemble = custom_linear_prediction * item_ensemble_weight_list[0] + \
-                                xgb_pred * item_ensemble_weight_list[1] + \
-                                lgb_pred * item_ensemble_weight_list[2] + \
-                                cat_pred * item_ensemble_weight_list[3] 
+                    ensemble = custom_linear_prediction * item_ensemble_weight_list[3] + \
+                                xgb_pred * item_ensemble_weight_list[2] + \
+                                lgb_pred * item_ensemble_weight_list[1] + \
+                                cat_pred * item_ensemble_weight_list[0] 
                     # ensemble
                     submission_df.loc[submission_df['시점'].str.startswith(timing), item] = ensemble
                 
@@ -256,7 +258,7 @@ if __name__=='__main__':
                             '시장명' : '*전국도매시장',
                         }
                     }      
-                    test_dome = pd.read_csv(os.path.join(test_df_path , "meta/"+''.join(file.split("_")[0] + '_경락정보_전국도매_' + file.split("_")[1])))
+                    test_dome = pd.read_csv(os.path.join(test_df_path , "meta/"+''.join(file.split("_")[0] + '_경락정보_전국도매_' + file.split("_")[1]+'.csv')))
                     test_dome = test_dome.sort_values('YYYYMMSOON').reset_index(drop=True)
 
                     target_test_df = test_df[
@@ -271,11 +273,14 @@ if __name__=='__main__':
                         target_test_df['총반입량(kg)'] = (test_dome[(test_dome['품목명'] == mapping_table[item]['품목명']) &
                                             (test_dome['품종명'] == mapping_table[item]['품종명']) &
                                             (test_dome['시장명'] == mapping_table[item]['시장명'])]['총반입량(kg)'].values)
-                    fe_target_test_df = fe_prob(target_test_df, item)
-
+                        for i in range(1, 9):
+                            target_test_df[f'income_lag{i}'] = target_test_df['총반입량(kg)'].shift(i)
+                    fe_target_test_df = fe_prob(target_test_df, item, prob_dict)
                     # rf
                     rf_pred = []
                     for step in [1,2,3]:
+                        tree_traget_col = [f'target_price_{step}']
+                        tree_feature = [col for col in fe_target_test_df.columns if col not in ["시점", '품목명', '품종명', '거래단위', '등급']+tree_traget_col]
                         rf_pred_ = 0
                         for i in range(1, n_splits+1):
                             model = joblib.load(os.path.join(pretrained_item_path,f'{item}_rf_step{step}.pkl'))
@@ -304,6 +309,16 @@ if __name__=='__main__':
                     submission_df.loc[submission_df['시점'].str.startswith(timing), item] = ensemble
 
                 if item in ['건고추','깐마늘(국산)','사과']:
+                    args={
+                        "ltsf_window_size": 9,
+                        "output_step": 3,
+                        "individual": True,
+                        "num_item": 1,
+                        "batch_size":4,
+                        "epoch": 100,
+                        "lr" : 0.001
+                    }
+                    n_splits=3
                     # Nlinear
                     test_x, test_y = sliding_window(target_test_df[target_col], 9, 0)
                     test_ds = Data(test_x, test_y)
@@ -325,4 +340,5 @@ if __name__=='__main__':
         
             # inference
             print(file, "Done")
+            # break
     submission_df.to_csv('./complete_submission.csv')

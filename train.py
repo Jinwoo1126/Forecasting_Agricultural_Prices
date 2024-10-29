@@ -65,8 +65,8 @@ if __name__ == '__main__':
 
     prob_dict = Fluctuation_Probability(train_df, config).get_fluctuation_probability()
     
-    os.makedirs(os.path.join('./','saved_model'),exist_ok=True)
-    saved_path = os.path.join('./','saved_model')
+    os.makedirs(os.path.join(root_path,'saved_model'),exist_ok=True)
+    saved_path = os.path.join(root_path,'saved_model')
     
     ## train
     filter_conditions = {

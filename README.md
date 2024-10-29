@@ -63,5 +63,5 @@
 - 먼저 `inference.py` 내의 72번째줄 pretrained_path 변수를 아래와 같이 변경한다.
 ```
     pretrained_path = os.path.join(root_path, 'saved_model')
-    # pretrained_path = os.path.join( './' , 'pretrained_model')
+    # pretrained_path = os.path.join( root_path , 'pretrained_model')
 ```

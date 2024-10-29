@@ -70,7 +70,7 @@ if __name__=='__main__':
     train_df_path = os.path.join(root_path,'train')
     
     # pretrained_path = os.path.join(root_path, 'saved_model')
-    pretrained_path = os.path.join( './' , 'pretrained_model')
+    pretrained_path = os.path.join( root_path , 'pretrained_model')
 
     submission_df = pd.read_csv(os.path.join(root_path,'sample_submission.csv'))
 

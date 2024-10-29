@@ -5,9 +5,9 @@
 ```
     root_path ('./')
     - train
-    -- 어쩌고
+    - ㄴ ...
     - test
-    -- 저쩌고
+    - ㄴ ...
     - sample_submission.csv
     - inference.py
     - train.py

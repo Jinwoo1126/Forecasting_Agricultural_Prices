@@ -1,4 +1,5 @@
 import random
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,9 +8,12 @@ import torch.utils.data as data_utils
 from torch.utils.data import Dataset, DataLoader
 
 import numpy as np
+import pandas as pd
 import lightgbm as lgb
+import xgboost as xgb
 
 from sklearn.ensemble import RandomForestRegressor
+from catboost import CatBoostRegressor
 
 
 
@@ -109,6 +113,62 @@ class RandomForest_Forecast:
     def train(self, x_train, y_train):
         self.model = RandomForestRegressor(**self.params)
         self.model.fit(x_train, y_train)
+
+        return self.model
+    
+    def predict(self, x_test):
+        return self.model.predict(x_test)
+    
+    def get_model(self):
+        return self.model
+    
+
+class XGB_Forecast:
+    def __init__(self, item, config):
+        self.params = config['model_params'][item]['XGB']
+
+    def train(self, x_train, y_train, x_valid, y_valid):
+        train_data = xgb.DMatrix(data=pd.get_dummies(x_train), label=y_train)
+        valid_data = xgb.DMatrix(data=pd.get_dummies(x_valid), label=y_valid)
+
+        self.model = xgb.train(
+            self.params,
+            train_data,
+            num_boost_round=10000,
+            evals=[(train_data, 'train'), (valid_data, 'valid')],
+            early_stopping_rounds=50,
+            verbose_eval=False
+        )
+
+        return self.model
+    
+    def predict(self, x_test):
+        return self.model.predict(xgb.DMatrix(pd.get_dummies(x_test)))
+    
+    def get_model(self):
+        return self.model
+
+
+class CatBoost_Forecast:
+    def __init__(self, item, config):
+        self.params = config['model_params'][item]['CatBoost']
+
+    def train(self, x_train, y_train, x_valid, y_valid, cat_col):
+        self.model = CatBoostRegressor(
+            learning_rate=0.05,
+            iterations=10000,
+            loss_function='RMSE',
+            random_seed=42,
+            verbose=False,
+            early_stopping_rounds=50
+        )
+
+        self.model.fit(
+            x_train, y_train,
+            eval_set=(x_valid, y_valid),
+            cat_features=cat_col,
+            use_best_model=True
+        )
 
         return self.model
     

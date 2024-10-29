@@ -8,18 +8,20 @@ import torch
 import pandas as pd
 import numpy as np
 
+
+from src.prep import (
+    Fluctuation_Probability, 
+    fe_prob
+)
+
 from src.utils import (
     process_data,
     set_seed
 )
 
 
-
 set_seed(42)
 warnings.filterwarnings("ignore", category=UserWarning)
-
-
-
 
 
 if __name__ == '__main__':
@@ -35,3 +37,6 @@ if __name__ == '__main__':
     train_dome = pd.read_csv(os.path.join(root_path, 'train/meta/TRAIN_경락정보_전국도매_2018-2022.csv'))
     ## sorted by YYYYMMSOON
     train_dome = train_dome.sort_values('YYYYMMSOON').reset_index(drop=True)
+
+    prob_dict = Fluctuation_Probability(train_df, config).get_fluctuation_probability()
+

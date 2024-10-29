@@ -85,7 +85,7 @@ if __name__ == '__main__':
 
 
     for item in filter_conditions.keys():
-        if item not in ['건고추', '사과', '깐마늘(국산)']:
+        if item != '양파':
             continue
         item_condition = filter_conditions[item]
         target_train_df = train_df[
@@ -94,6 +94,7 @@ if __name__ == '__main__':
             (train_df['거래단위'] == item_condition['거래단위']) &
             (train_df['등급'] == item_condition['등급'])
             ].copy()
+        
         
         if item in ['건고추', '사과', '깐마늘(국산)']:
             ## NLinear Model
@@ -155,7 +156,6 @@ if __name__ == '__main__':
                 loss_list_.append(max_loss.item())
             test_loss_list.append(np.mean(loss_list_))
         
-
         
         if item == '감자 수미':
             ## NLinear Model
@@ -243,6 +243,7 @@ if __name__ == '__main__':
                     model_save_path = f'{item}_rf_step{step}.pkl'
                     joblib.dump(model, model_save_path)
 
+
         if item == '양파':
             # FE
             target_train_df = extract_year_month(target_train_df)
@@ -250,6 +251,7 @@ if __name__ == '__main__':
             target_train_df = add_fourier_features(target_train_df)
             target_train_df = price_log(target_train_df, target_col)
             extra_hist_col = ['mean', 'std', 'month_sin', 'month_cos', 'log_평균가격(원)']
+            breakpoint()
             extra_x_, _= sliding_window(target_train_df[extra_hist_col], 9, 3)
 
             for step in [1,2,3]:
@@ -290,3 +292,35 @@ if __name__ == '__main__':
                     lgb_model = cls_lgb_model.train(x_train, y_train, x_valid, y_valid)
                     model_save_path = f'lgb_{item}_fold{idx+1}_step{step}.pkl'
                     joblib.dump(lgb_model, model_save_path)
+
+
+        if item == '무':
+            for step in [1,2,3]:
+                fe_target_train_df = fe_event(target_train_df, item, t=step)
+                agg_df, fe_target_train_df = price_agg(fe_target_train_df)
+                tree_traget_col = [f'target_price_{step}']
+                tree_feature = [col for col in fe_target_train_df.columns if col not in ["시점", '품목명', '품종명', '거래단위', '등급']+tree_traget_col]
+
+                if 'event' in fe_target_train_df.columns:
+                    tree_feature = ['평균가격(원)', '년도', '월', '순', 'season', 'event', 'mean', 'std', 'price_pct_1', 'fourier_sin', 'fourier_cos']
+                    cat_col = ['년도', '월', '순', 'season', 'event']
+                    fe_target_train_df['event'] = fe_target_train_df['event'].astype('int')
+                else:
+                    tree_feature = ['평균가격(원)', '년도', '월',  'season', 'mean', 'std', 'price_pct_1', 'fourier_sin', 'fourier_cos']
+                    cat_col = ['년도', '월', '순', 'season']
+
+                x = fe_target_train_df[tree_feature]
+                y = fe_target_train_df[tree_traget_col]
+
+                n_splits = 10
+                kfold = KFold(n_splits=n_splits, random_state=1991, shuffle=True)
+                for idx, (train_index, test_index) in enumerate(kfold.split(x)):
+                    x_train = x.iloc[train_index]
+                    y_train = y.iloc[train_index]
+                    x_valid = x.iloc[test_index]
+                    y_valid = y.iloc[test_index]
+
+                    cls_cat_model = CatBoost_Forecast(item, config)
+                    cat_model = cls_cat_model.train(x_train, y_train, x_valid, y_valid, cat_col)
+                    model_save_path = f'{item}_cat_fold{idx+1}_step{step}.pkl'
+                    joblib.dump(cat_model, model_save_path)

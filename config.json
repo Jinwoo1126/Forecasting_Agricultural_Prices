@@ -147,6 +147,16 @@
                 "nthread" : 8,
                 "verbosity" : 0
             }
+        },
+        "무" : {
+            "CatBoost" : {
+                "learning_rate" : 0.05,
+                "iterations" : 10000,
+                "loss_function" : "RMSE",
+                "random_seed" : 42,
+                "verbose" : false,
+                "early_stopping_rounds" : 50
+            }
         }
     }
 }

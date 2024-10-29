@@ -52,6 +52,39 @@
         "k" : 2
     },
     "model_params" : {
+        "건고추" : {
+            "Nlinear" : {
+                "ltsf_window_size": 9,
+                "output_step": 3,
+                "individual": true,
+                "num_item": 1,
+                "batch_size":4,
+                "epoch": 100,
+                "lr" : 0.001
+            }
+        },
+        "사과" : {
+            "Nlinear" : {
+                "ltsf_window_size": 9,
+                "output_step": 3,
+                "individual": true,
+                "num_item": 1,
+                "batch_size":4,
+                "epoch": 100,
+                "lr" : 0.001
+            }
+        },
+        "깐마늘(국산)" : {
+            "Nlinear" : {
+                "ltsf_window_size": 9,
+                "output_step": 3,
+                "individual": true,
+                "num_item": 1,
+                "batch_size":4,
+                "epoch": 100,
+                "lr" : 0.001
+            }
+        },
         "감자 수미" : {
             "Nlinear" : {
                 "ltsf_window_size": 9,

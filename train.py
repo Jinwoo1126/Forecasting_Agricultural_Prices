@@ -85,7 +85,7 @@ if __name__ == '__main__':
 
 
     for item in filter_conditions.keys():
-        if item != '감자 수미':
+        if item not in ['건고추', '사과', '깐마늘(국산)']:
             continue
         item_condition = filter_conditions[item]
         target_train_df = train_df[
@@ -94,6 +94,66 @@ if __name__ == '__main__':
             (train_df['거래단위'] == item_condition['거래단위']) &
             (train_df['등급'] == item_condition['등급'])
             ].copy()
+        
+        if item in ['건고추', '사과', '깐마늘(국산)']:
+            ## NLinear Model
+            n_splits = 3
+            kfold = KFold(n_splits=n_splits, random_state=42, shuffle=True)
+            x_, y_ = sliding_window(target_train_df[target_col], 9, 3)
+            loss_list_ = []
+            for idx, (train_index, valid_index) in enumerate(kfold.split(x_)):
+                train_x = x_[train_index]
+                train_y = y_[train_index]
+                valid_x = x_[valid_index]
+                valid_y = y_[valid_index]
+
+                train_ds = Data(train_x, train_y)
+                train_dl = DataLoader(
+                    train_ds,
+                    batch_size = config['model_params'][item]['Nlinear']['batch_size'],
+                    shuffle=True,
+                    worker_init_fn=worker_init_fn,
+                    generator=torch.Generator().manual_seed(42)
+                    )
+                valid_ds = Data(valid_x, valid_y)
+                valid_dl = DataLoader(
+                    valid_ds,
+                    batch_size = valid_x.shape[0],
+                    shuffle=False,
+                    worker_init_fn=lambda worker_id: np.random.seed(42),
+                    generator=torch.Generator().manual_seed(42)
+                    )
+                torch.manual_seed(42)
+                n_linear = Nlinear(config['model_params'][item]['Nlinear'])
+                optimizer = torch.optim.Adam(n_linear.parameters(), lr=config['model_params'][item]['Nlinear']['lr'])
+                max_loss = 999999999
+
+                for epoch in tqdm(range(1, config['model_params'][item]['Nlinear']['epoch']+1)):
+                    loss_list = []
+                    n_linear.train()
+                    for batch_idx, (data, target) in enumerate(train_dl):
+                        optimizer.zero_grad()
+                        output = n_linear(data)
+                        loss = NMAE(output.squeeze(), target)
+                        loss.backward()
+                        optimizer.step()
+                        loss_list.append(loss.item())
+                    train_loss = np.mean(loss_list)
+
+                    n_linear.eval()
+                    with torch.no_grad():
+                        for batch_idx, (data, target) in enumerate(valid_dl):
+                            output = n_linear(data)
+                            valid_loss = NMAE(output, target.unsqueeze(-1))
+
+                        if valid_loss < max_loss:
+                            max_loss = valid_loss
+                            torch.save(n_linear.state_dict(), f"{item}_fold{idx+1}_nlinear_model.pth")
+
+                    if epoch % 10 == 0:
+                        print("epoch: {}, Train_NMAE: {:.3f}, Valid_NMAE: {:.3f}".format(epoch, train_loss, valid_loss))
+                loss_list_.append(max_loss.item())
+            test_loss_list.append(np.mean(loss_list_))
         
 
         

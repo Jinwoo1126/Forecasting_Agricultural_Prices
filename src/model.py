@@ -75,8 +75,6 @@ class Nlinear(torch.nn.Module):
         x = x + seq_last
         return x
     
-    
-    
 
 class LGBM_Forecast:
     def __init__(self, item, config):

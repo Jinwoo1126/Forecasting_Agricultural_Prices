@@ -98,7 +98,7 @@ if __name__ == '__main__':
 
         if item == '배추':
             os.makedirs(os.path.join(root_path,'autogluon_result'),exist_ok=True)
-            cat_col = ["시점", '품목명', '품종명', '거래단위', '등급','평년 평균가격(원) Common Year SOON']
+            cat_col = ["시점", '품목명', '품종명', '거래단위', '등급','평년 평균가격(원)']
             target_train_df.fillna("None",inplace=True)
             for step in [1,2,3]:
                 model_save_path = f'{item}_autogluon_step{step}.pkl'

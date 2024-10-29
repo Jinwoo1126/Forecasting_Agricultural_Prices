@@ -1,5 +1,5 @@
 import os
-import random
+import time
 import joblib
 import warnings
 import json
@@ -9,10 +9,7 @@ import pandas as pd
 import numpy as np
 
 from easydict import EasyDict
-from tqdm import tqdm
-from sklearn.model_selection import KFold
-from torch.utils.data import Dataset, DataLoader
-import lightgbm as lgb
+from torch.utils.data import DataLoader
 import xgboost as xgb
 
 from src.prep import (
@@ -24,27 +21,20 @@ from src.prep import (
 
 from src.utils import (
     process_data,
-    set_seed,
     extract_year_month,
     price_agg,
     price_log,
     add_fourier_features,
     sliding_window,
-    NMAE,
 )
 
 from src.model import (
     custom_linear,
-    worker_init_fn,
     Data,
     Nlinear,
-    CatBoost_Forecast,
-    XGB_Forecast,
-    RandomForest_Forecast,
-    LGBM_Forecast,
 )
 
-
+warnings.filterwarnings("ignore", category=UserWarning)
 filter_conditions = {
     '건고추': {'품종명': ['화건'], '거래단위': '30kg', '등급': '상품'},
     '사과': {'품종명': ['홍로', '후지'], '거래단위': '10개', '등급': '상품'},
@@ -63,6 +53,7 @@ test_loss_list = []
 
 
 if __name__=='__main__':
+    tic = time.time()
     config = json.load(open('config.json'))
 
     root_path = config['data_dir']
@@ -119,7 +110,7 @@ if __name__=='__main__':
 
                 if item == '배추':
                     ### autogluon
-                    cat_col = ["시점", '품목명', '품종명', '거래단위', '등급','평년 평균가격(원) Common Year SOON']
+                    cat_col = ["시점", '품목명', '품종명', '거래단위', '등급','평년 평균가격(원)']
                     target_test_df.fillna("None",inplace=True)
                     cur_preds = []
                     for step in [1,2,3]:
@@ -364,3 +355,5 @@ if __name__=='__main__':
             print(file, "Done")
             # break
     submission_df.to_csv('./complete_submission.csv',index=False)
+    toc = time.time()
+    print(f"Time {toc-tic:.4f}s")

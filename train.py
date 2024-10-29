@@ -15,7 +15,8 @@ from torch.utils.data import Dataset, DataLoader
 from src.prep import (
     Fluctuation_Probability, 
     fe_prob,
-    fe_event
+    fe_event,
+    fe_autogluon
 )
 
 from src.utils import (
@@ -40,7 +41,7 @@ from src.model import (
     LGBM_Forecast,
 )
 
-
+from autogluon.tabular import TabularDataset, TabularPredictor
 
 set_seed(42)
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -95,6 +96,28 @@ if __name__ == '__main__':
             (train_df['등급'] == item_condition['등급'])
             ].copy()
 
+        if item == '배추':
+            os.makedirs(os.path.join(root_path,'autogluon_result'),exist_ok=True)
+            cat_col = ["시점", '품목명', '품종명', '거래단위', '등급','평년 평균가격(원) Common Year SOON']
+            target_train_df.fillna("None",inplace=True)
+            for step in [1,2,3]:
+                model_save_path = f'{item}_autogluon_step{step}.pkl'
+                fe_target_train_df = fe_autogluon(target_train_df, t=step)
+                tree_traget_col = [f'target_price_{step}']
+                now_train_df = fe_autogluon(target_train_df, train=True, item=item, t=step)
+                train_col = [col for col in now_train_df.columns if col not in cat_col+tree_traget_col]
+                now_train_df = now_train_df[train_col + [f'target_price_{step}']]
+
+                train_data = TabularDataset(now_train_df.astype(float))
+                model = TabularPredictor(label=f'target_price_{step}', eval_metric='mean_absolute_percentage_error',verbosity=1, problem_type='regression')
+                model.fit(train_data,
+                        presets='medium_quality',
+                        time_limit=240,
+                        auto_stack=True,
+                            )
+                joblib.dump(model, os.path.join(root_path,'autogluon_result',model_save_path))
+                results = model.fit_summary()
+                
         if item in ['건고추', '사과', '깐마늘(국산)']:
             ## NLinear Model
             n_splits = 3

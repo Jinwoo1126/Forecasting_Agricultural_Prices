@@ -52,7 +52,6 @@ if __name__ == '__main__':
     config = json.load(open('config.json'))
 
     root_path = config['data_dir']
-    # root_path = './data'
 
     train_1 = pd.read_csv(os.path.join(root_path, 'train/train_1.csv'))
     train_2 = pd.read_csv(os.path.join(root_path, 'train/train_2.csv'))

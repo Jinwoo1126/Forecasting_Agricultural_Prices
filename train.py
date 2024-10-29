@@ -41,7 +41,7 @@ from src.model import (
     LGBM_Forecast,
 )
 
-
+from autogluon.tabular import TabularDataset, TabularPredictor
 
 set_seed(42)
 warnings.filterwarnings("ignore", category=UserWarning)

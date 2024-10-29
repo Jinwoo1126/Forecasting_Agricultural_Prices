@@ -126,10 +126,10 @@ if __name__ == '__main__':
             (test_df['등급'] == item_condition['등급'])
         ].copy()
 
-        # Prediction logic for different items
+        # Prediction logic for each item type
         timing = '_'.join(file.split("_")[:2])
+
         if item == '배추':
-            # Example for 배추 using AutoGluon
             cat_col = ["시점", '품목명', '품종명', '거래단위', '등급', '평년 평균가격(원) Common Year SOON']
             target_test_df.fillna("None", inplace=True)
             cur_preds = []
@@ -142,7 +142,109 @@ if __name__ == '__main__':
 
             submission_df.loc[submission_df['시점'].str.startswith(timing), item] = cur_preds
 
-        # Add similar logic for other items here...
+        elif item == '무':
+            n_splits = 10
+            for step in [1, 2, 3]:
+                fe_target_train_df = fe_event(target_train_df, item, t=step)
+                agg_df, fe_target_train_df = price_agg(fe_target_train_df)
+
+            fe_target_test_df = fe_event(target_test_df, item)
+            fe_target_test_df = pd.merge(fe_target_test_df, agg_df, on=['월', '순'], how='left')
+
+            if 'event' in fe_target_test_df.columns:
+                fe_target_test_df['event'] = fe_target_test_df['event'].astype('int')
+
+            cat_pred = []
+            for step in [1, 2, 3]:
+                cat_pred_ = 0
+                for i in range(1, n_splits + 1):
+                    model = load_model(os.path.join(pretrained_item_path, f'{item}_cat_fold{i}_step{step}.pkl'))
+                    tree_feature = [col for col in fe_target_test_df.columns if col not in ["시점", '품목명', '품종명', '거래단위', '등급'] + [f'target_price_{step}']]
+                    cat_pred_ += np.expm1(model.predict(fe_target_test_df.loc[0:, tree_feature])[0]) / n_splits
+                cat_pred.append(cat_pred_)
+
+            submission_df.loc[submission_df['시점'].str.startswith(timing), item] = cat_pred
+
+        elif item == '감자 수미':
+            mapping_table = {
+                '감자 수미': {
+                    '품목명': '감자',
+                    '품종명': '수미',
+                    '시장명': '*전국도매시장',
+                }
+            }
+            test_dome = pd.read_csv(os.path.join(test_df_path, "meta/" + ''.join(file.split("_")[0] + '_경락정보_전국도매_' + file.split("_")[1] + '.csv')))
+            test_dome = test_dome.sort_values('YYYYMMSOON').reset_index(drop=True)
+
+            target_test_df['총반입량(kg)'] = test_dome[(test_dome['품목명'] == mapping_table[item]['품목명']) &
+                                                     (test_dome['품종명'] == mapping_table[item]['품종명']) &
+                                                     (test_dome['시장명'] == mapping_table[item]['시장명'])]['총반입량(kg)'].values
+            for i in range(1, 9):
+                target_test_df[f'income_lag{i}'] = target_test_df['총반입량(kg)'].shift(i)
+
+            fe_target_test_df = fe_prob(target_test_df, item, prob_dict)
+
+            rf_pred = []
+            for step in [1, 2, 3]:
+                tree_feature = [col for col in fe_target_test_df.columns if col not in ["시점", '품목명', '품종명', '거래단위', '등급'] + [f'target_price_{step}']]
+                rf_pred_ = 0
+                for i in range(1, n_splits + 1):
+                    model = load_model(os.path.join(pretrained_item_path, f'{item}_rf_step{step}.pkl'))
+                    rf_pred_ += np.expm1(model.predict(fe_target_test_df.loc[0:, tree_feature])[0]) / n_splits
+                rf_pred.append(rf_pred_)
+
+            test_x, test_y = sliding_window(target_test_df[target_col], 9, 0)
+            test_ds = Data(test_x, test_y)
+            test_dl = DataLoader(test_ds, batch_size=test_y.shape[0], shuffle=False)
+            nlinear_prediction = 0
+            for fold in range(n_splits):
+                n_linear = Nlinear(EasyDict({
+                    'ltsf_window_size': 9,
+                    'output_step': 3,
+                    'individual': True,
+                    'num_item': 1,
+                    'num_experts': 4,
+                    'attention_heads': 4,
+                    'batch_size': 4,
+                    'epoch': 100,
+                    'lr': 0.01,
+                    'kernel_size': 9
+                }))
+                n_linear.load_state_dict(torch.load(os.path.join(pretrained_item_path, f"{item}_fold{fold + 1}_nlinear_model.pth"), weights_only=True))
+                n_linear.eval()
+                with torch.no_grad():
+                    for data, target in test_dl:
+                        nlinear_prediction += n_linear(data).numpy().reshape(-1) / n_splits
+
+            ensemble = rf_pred * 0.9 + nlinear_prediction * 0.1
+            submission_df.loc[submission_df['시점'].str.startswith(timing), item] = ensemble
+
+        elif item in ['건고추', '깐마늘(국산)', '사과']:
+            args = {
+                "ltsf_window_size": 9,
+                "output_step": 3,
+                "individual": True,
+                "num_item": 1,
+                "batch_size": 4,
+                "epoch": 100,
+                "lr": 0.001
+            }
+            n_splits = 3
+
+            test_x, test_y = sliding_window(target_test_df[target_col], 9, 0)
+            test_ds = Data(test_x, test_y)
+            test_dl = DataLoader(test_ds, batch_size=test_y.shape[0], shuffle=False)
+
+            nlinear_prediction = 0
+            for fold in range(n_splits):
+                n_linear = Nlinear(args)
+                n_linear.load_state_dict(torch.load(os.path.join(pretrained_item_path, f"{item}_fold{fold + 1}_nlinear_model.pth"), weights_only=True))
+                n_linear.eval()
+                with torch.no_grad():
+                    for data, target in test_dl:
+                        nlinear_prediction += n_linear(data).numpy().reshape(-1) / n_splits
+
+            submission_df.loc[submission_df['시점'].str.startswith(timing), item] = nlinear_prediction
 
     # Parallel processing for each test file and item
     for file in sorted(os.listdir(test_df_path)):

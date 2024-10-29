@@ -259,7 +259,6 @@ if __name__ == '__main__':
             agg_df, target_train_df = price_agg(target_train_df)
             target_train_df = add_fourier_features(target_train_df)
             target_train_df = price_log(target_train_df, target_col)
-            extra_hist_col = ['mean', 'std', 'month_sin', 'month_cos', 'log_평균가격(원)']
 
             n_splits = 10
             kfold = KFold(n_splits=n_splits, random_state=42, shuffle=True)
@@ -267,13 +266,11 @@ if __name__ == '__main__':
             loss_list_ = []
             for idx, (train_index, valid_index) in enumerate(kfold.split(x_)):
                 train_x = x_[train_index]
-                extra_train_x = extra_x_[train_index]
                 train_y = y_[train_index]
                 valid_x = x_[valid_index]
-                extra_valid_x = extra_x_[valid_index]
                 valid_y = y_[valid_index]
 
-                train_ds = Data(train_x, extra_train_x, train_y)
+                train_ds = Data(train_x, train_y)
                 train_dl = DataLoader(
                     train_ds,
                     batch_size = args.batch_size,
@@ -282,7 +279,7 @@ if __name__ == '__main__':
                     generator=torch.Generator().manual_seed(42),
                     drop_last=True
                     )
-                valid_ds = Data(valid_x, extra_valid_x, valid_y)
+                valid_ds = Data(valid_x, valid_y)
                 valid_dl = DataLoader(
                     valid_ds,
                     batch_size = valid_x.shape[0],
@@ -299,7 +296,7 @@ if __name__ == '__main__':
                     loss_list = []
                     model.train()
 
-                    for batch_idx, (data, extra_data, target) in enumerate(train_dl):
+                    for batch_idx, (data, target) in enumerate(train_dl):
                         optimizer.zero_grad()
                         output = model(data)
                         loss = NMAE(output.squeeze(), target)
@@ -311,7 +308,7 @@ if __name__ == '__main__':
 
                     model.eval()
                     with torch.no_grad():
-                        for batch_idx, (data, extra_data, target) in enumerate(valid_dl):
+                        for batch_idx, (data, target) in enumerate(valid_dl):
                             output = model(data)
                             valid_nmae = NMAE(output, target.unsqueeze(-1))
 

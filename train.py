@@ -8,7 +8,9 @@ import torch
 import pandas as pd
 import numpy as np
 
+from tqdm import tqdm
 from sklearn.model_selection import KFold
+from torch.utils.data import Dataset, DataLoader
 
 from src.prep import (
     Fluctuation_Probability, 
@@ -28,6 +30,9 @@ from src.utils import (
 )
 
 from src.model import (
+    worker_init_fn,
+    Data,
+    Nlinear,
     CatBoost_Forecast,
     XGB_Forecast,
     RandomForest_Forecast,
@@ -90,7 +95,75 @@ if __name__ == '__main__':
             (train_df['등급'] == item_condition['등급'])
             ].copy()
         
+
+        
         if item == '감자 수미':
+            ## NLinear Model
+            n_splits = 3
+            kfold = KFold(n_splits=n_splits, random_state=42, shuffle=True)
+            x_, y_ = sliding_window(target_train_df[target_col], 9, 3)
+            loss_list_ = []
+            for idx, (train_index, valid_index) in enumerate(kfold.split(x_)):
+                train_x = x_[train_index]
+                train_y = y_[train_index]
+                valid_x = x_[valid_index]
+                valid_y = y_[valid_index]
+
+                train_ds = Data(train_x, train_y)
+                train_dl = DataLoader(
+                    train_ds,
+                    batch_size = config['model_params'][item]['Nlinear']['batch_size'],
+                    shuffle=True,
+                    worker_init_fn=worker_init_fn,
+                    generator=torch.Generator().manual_seed(42)
+                    )
+                valid_ds = Data(valid_x, valid_y)
+                valid_dl = DataLoader(
+                    valid_ds,
+                    batch_size = valid_x.shape[0],
+                    shuffle=False,
+                    worker_init_fn=lambda worker_id: np.random.seed(42),
+                    generator=torch.Generator().manual_seed(42)
+                    )
+                torch.manual_seed(42)
+                n_linear = Nlinear(config['model_params'][item]['Nlinear'])
+                optimizer = torch.optim.Adam(n_linear.parameters(), lr=config['model_params'][item]['Nlinear']['lr'])
+                max_loss = 999999999
+
+                for epoch in tqdm(range(1, config['model_params'][item]['Nlinear']['epoch']+1)):
+                    loss_list = []
+                    n_linear.train()
+                    for batch_idx, (data, target) in enumerate(train_dl):
+                        optimizer.zero_grad()
+                        output = n_linear(data)
+                        loss = NMAE(output.squeeze(), target)
+                        loss.backward()
+                        optimizer.step()
+                        loss_list.append(loss.item())
+                    train_loss = np.mean(loss_list)
+
+                    n_linear.eval()
+                    with torch.no_grad():
+                        for batch_idx, (data, target) in enumerate(valid_dl):
+                            output = n_linear(data)
+                            valid_loss = NMAE(output, target.unsqueeze(-1))
+
+                        if valid_loss < max_loss:
+                            max_loss = valid_loss
+                            torch.save(n_linear.state_dict(), f"{item}_fold{idx+1}_nlinear_model.pth")
+
+                    if epoch % 10 == 0:
+                        print("epoch: {}, Train_NMAE: {:.3f}, Valid_NMAE: {:.3f}".format(epoch, train_loss, valid_loss))
+                loss_list_.append(max_loss.item())
+            test_loss_list.append(np.mean(loss_list_))
+
+            ## RF Model
+            target_train_df['총반입량(kg)'] = (train_dome[(train_dome['품목명'] == config['mapping_table'][item]['품목명']) & 
+                                        (train_dome['품종명'] == config['mapping_table'][item]['품종명']) & 
+                                        (train_dome['시장명'] == config['mapping_table'][item]['시장명'])]['총반입량(kg)'].values)
+                
+            for i in range(1, 9):
+                target_train_df[f'income_lag{i}'] = target_train_df['총반입량(kg)'].shift(i)
             for step in [1,2,3]:
                 fe_target_train_df = fe_prob(target_train_df, item, prob_dict, t=step)
                 tree_traget_col = [f'target_price_{step}']

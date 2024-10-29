@@ -29,6 +29,10 @@ class NaiveForecaster:
         return [self.last_value] * self.steps
     
 
+def worker_init_fn(worker_id):
+    np.random.seed(42 + worker_id)
+    random.seed(42 + worker_id)
+
 class Data(Dataset):
     def __init__(self, x, y):
         self.x = torch.tensor(x)
@@ -44,10 +48,10 @@ class Data(Dataset):
 class Nlinear(torch.nn.Module):
     def __init__(self, args):
         super(Nlinear, self).__init__()
-        self.window_size = args.ltsf_window_size
-        self.forcast_size = args.output_step
-        self.individual = args.individual
-        self.channels = args.num_item
+        self.window_size = args['ltsf_window_size']
+        self.forcast_size = args['output_step']
+        self.individual = args['individual']
+        self.channels = args['num_item']
         self.dropout = torch.nn.Dropout(p=0.25)
 
         if self.individual == True:
@@ -56,11 +60,6 @@ class Nlinear(torch.nn.Module):
                 self.Linear.append(torch.nn.Linear(self.window_size, self.forcast_size))
         else:
             self.Linear = torch.nn.Linear(self.window_size, self.forcast_size)
-
-    
-    def worker_init_fn(self, worker_id):
-        np.random.seed(42 + worker_id)
-        random.seed(42 + worker_id)
 
     def forward(self, x):
         seq_last = x[:,-1:,:].detach()
@@ -75,6 +74,8 @@ class Nlinear(torch.nn.Module):
         x = self.dropout(x)
         x = x + seq_last
         return x
+    
+    
     
 
 class LGBM_Forecast:

@@ -35,13 +35,19 @@
     !uv pip install autogluon --system
     !pip install lightgbm
 ```
-### Requirements for Training on Mac
+### Requirements for Training on Mac for 사과, 깐마늘, 건고추, 감자 수미
 ```
     pip install -r requirements_mac.txt
 ```
 
+### Requirements for Training on Linux for 사과, 깐마늘, 건고추, 감자 수미
+```
+    pip install -r requirements.txt
+    pip install autogluon
+```
+
 ## Requisites for INFERENCE
-## Requirements for Inference
+### Requirements for Inference
 ```
     pip install -r requirements.txt
     pip install autogluon

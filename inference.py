@@ -103,7 +103,8 @@ if __name__=='__main__':
 
                 # FE
                 target_train_df = extract_year_month(target_train_df)
-                agg_df, target_train_df = price_agg(target_train_df)
+                if item in ['상추','배','양파','대파(일반)']:
+                    agg_df, target_train_df = price_agg(target_train_df)
 
                 ##test_df
 
@@ -134,6 +135,9 @@ if __name__=='__main__':
 
                 if item == '무':
                     n_splits = 10
+                    for step in [1,2,3]:
+                        fe_target_train_df = fe_event(target_train_df, item, t=step)
+                        agg_df, fe_target_train_df = price_agg(fe_target_train_df)
                     # CAT
                     fe_target_test_df = fe_event(target_test_df, item)
                     fe_target_test_df = pd.merge(fe_target_test_df, agg_df, on=['월','순'], how='left')
@@ -164,6 +168,7 @@ if __name__=='__main__':
                     extra_hist_col = ['mean', 'std', 'month_sin', 'month_cos', 'log_평균가격(원)']
                     n_splits = 10
                     idx = 9 # ;
+                    
                     fe_target_test_df = fe_event(target_test_df, item)
                     fe_target_test_df = pd.merge(fe_target_test_df, agg_df, on=['월','순'], how='left')
 

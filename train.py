@@ -15,7 +15,8 @@ from torch.utils.data import Dataset, DataLoader
 from src.prep import (
     Fluctuation_Probability, 
     fe_prob,
-    fe_event
+    fe_event,
+    fe_autogluon
 )
 
 from src.utils import (
@@ -39,6 +40,7 @@ from src.model import (
     LGBM_Forecast,
 )
 
+from autogluon.tabular import TabularDataset, TabularPredictor
 
 
 set_seed(42)
@@ -46,9 +48,10 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 
 if __name__ == '__main__':
-    config = json.load(open('config.json'))
+    # config = json.load(open('config.json'))
 
-    root_path = config['data_dir']
+    # root_path = config['data_dir']
+    root_path = './data'
 
     train_1 = pd.read_csv(os.path.join(root_path, 'train/train_1.csv'))
     train_2 = pd.read_csv(os.path.join(root_path, 'train/train_2.csv'))
@@ -59,21 +62,21 @@ if __name__ == '__main__':
     ## sorted by YYYYMMSOON
     train_dome = train_dome.sort_values('YYYYMMSOON').reset_index(drop=True)
 
-    prob_dict = Fluctuation_Probability(train_df, config).get_fluctuation_probability()
+    # prob_dict = Fluctuation_Probability(train_df, config).get_fluctuation_probability()
 
 
     ## train
     filter_conditions = {
-        '건고추': {'품종명': ['화건'], '거래단위': '30kg', '등급': '상품'},
-        '사과': {'품종명': ['홍로', '후지'], '거래단위': '10개', '등급': '상품'},
-        '감자 수미': {'품종명': [None], '거래단위': '20키로상자', '등급': '상'},
-        '배': {'품종명': ['신고'], '거래단위': '10개', '등급': '상품'},
-        '깐마늘(국산)': {'품종명': ['깐마늘(국산)'], '거래단위': '20kg', '등급': '상품'},
-        '무': {'품종명': [None], '거래단위': '20키로상자', '등급': '상'},
-        '상추': {'품종명': ['청'], '거래단위': '100g', '등급': '상품'},
+        # '건고추': {'품종명': ['화건'], '거래단위': '30kg', '등급': '상품'},
+        # '사과': {'품종명': ['홍로', '후지'], '거래단위': '10개', '등급': '상품'},
+        # '감자 수미': {'품종명': [None], '거래단위': '20키로상자', '등급': '상'},
+        # '배': {'품종명': ['신고'], '거래단위': '10개', '등급': '상품'},
+        # '깐마늘(국산)': {'품종명': ['깐마늘(국산)'], '거래단위': '20kg', '등급': '상품'},
+        # '무': {'품종명': [None], '거래단위': '20키로상자', '등급': '상'},
+        # '상추': {'품종명': ['청'], '거래단위': '100g', '등급': '상품'},
+        # '양파': {'품종명': [None], '거래단위': '1키로', '등급': '상'},
+        # '대파(일반)': {'품종명': [None], '거래단위': '1키로단', '등급': '상'},
         '배추': {'품종명': [None], '거래단위': '10키로망대', '등급': '상'},
-        '양파': {'품종명': [None], '거래단위': '1키로', '등급': '상'},
-        '대파(일반)': {'품종명': [None], '거래단위': '1키로단', '등급': '상'}
     }
 
     cat_submission_df = submission_df.copy()
@@ -85,8 +88,6 @@ if __name__ == '__main__':
 
 
     for item in filter_conditions.keys():
-        if item != '감자 수미':
-            continue
         item_condition = filter_conditions[item]
         target_train_df = train_df[
             (train_df['품목명'] == item) &
@@ -96,8 +97,30 @@ if __name__ == '__main__':
             ].copy()
         
 
+        if item == '배추':
+            os.makedirs(os.path.join(root_path,'autogluon_result'),exist_ok=True)
+            cat_col = ["시점", '품목명', '품종명', '거래단위', '등급','평년 평균가격(원) Common Year SOON']
+            target_train_df.fillna("None",inplace=True)
+            for step in [1,2,3]:
+                model_save_path = f'{item}_autogluon_step{step}.pkl'
+                fe_target_train_df = fe_autogluon(target_train_df, t=step)
+                tree_traget_col = [f'target_price_{step}']
+                now_train_df = fe_autogluon(target_train_df, train=True, item=item, t=step)
+                train_col = [col for col in now_train_df.columns if col not in cat_col+tree_traget_col]
+                now_train_df = now_train_df[train_col + [f'target_price_{step}']]
+
+                train_data = TabularDataset(now_train_df.astype(float))
+                model = TabularPredictor(label=f'target_price_{step}', eval_metric='mean_absolute_percentage_error',verbosity=1, problem_type='regression')
+                model.fit(train_data,
+                        presets='medium_quality',
+                        time_limit=240,
+                        auto_stack=True,
+                            )
+                joblib.dump(model, os.path.join(root_path,'autogluon_result',model_save_path))
+                results = model.fit_summary()
+
         
-        if item == '감자 수미':
+        elif item == '감자 수미':
             ## NLinear Model
             n_splits = 3
             kfold = KFold(n_splits=n_splits, random_state=42, shuffle=True)

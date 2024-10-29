@@ -195,3 +195,30 @@ def fe_event(df, item, t=None):
         df_[f'target_price_{t}'] = df_['평균가격(원)'].shift(-t)
 
     return df_.dropna().reset_index(drop=True)
+
+
+def fe_autogluon(df, train=True, item= None, t= None):
+    df_ = df.copy()
+
+    for i in range(1, 9):
+        df_[f'price_pct_{i}'] = df_['평균가격(원)'].pct_change(periods=i)
+    step = 9
+    for i in range(step):
+        df_[f'price_lag{i}'] = df_['평균가격(원)'].shift(i)
+        if item in ['대파(일반)','양파','배추','감자 수미']:
+            df_[f'price_ratio{i}'] = df_[f'price_lag{i}'] / df_['평년 평균가격(원) Common Year SOON'].shift(i)
+    k = 3 # window size
+    df_['price_mean0']=df_['평균가격(원)'].rolling(k, min_periods=1, center=True).mean()
+    mean_step = 6
+    for i in range(mean_step):
+        df_[f'price_mean{i}']=df_[df_['price_mean0'].notnull()]['price_mean0'].shift(i)
+    if not train:
+        df_ = df_.dropna().reset_index(drop=True)
+    df_['Month'] = df_['시점'].str[4:6].astype(float) / 12
+    df_['Month_sin'] = np.sin(2 * np.pi * df_['Month'])
+    df_['Month_cos'] = np.cos(2 * np.pi * df_['Month'])
+    if t:
+        df_[f'target_price_{t}'] = df_['평균가격(원)'].shift(-t)
+    df_.drop(['Month','평년 평균가격(원) Common Year SOON','평균가격(원)'], axis=1, inplace=True)
+    
+    return df_.dropna().reset_index(drop=True)

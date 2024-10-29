@@ -48,10 +48,10 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 
 if __name__ == '__main__':
-    # config = json.load(open('config.json'))
+    config = json.load(open('config.json'))
 
-    # root_path = config['data_dir']
-    root_path = './data'
+    root_path = config['data_dir']
+    # root_path = './data'
 
     train_1 = pd.read_csv(os.path.join(root_path, 'train/train_1.csv'))
     train_2 = pd.read_csv(os.path.join(root_path, 'train/train_2.csv'))
@@ -120,7 +120,7 @@ if __name__ == '__main__':
                 results = model.fit_summary()
 
         
-        elif item == '감자 수미':
+        if item == '감자 수미':
             ## NLinear Model
             n_splits = 3
             kfold = KFold(n_splits=n_splits, random_state=42, shuffle=True)

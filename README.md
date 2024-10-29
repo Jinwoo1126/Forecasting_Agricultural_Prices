@@ -12,7 +12,7 @@
     품목: 사과, 깐마늘, 건고추, 감자 수미
 ```
 
-## TRAINING
+## Requisites for TRAINING
 ### Requirements for Training on Colab (python 3.10.12)
 ```
     !pip install -U uv
@@ -25,7 +25,7 @@
     pip install -r requirements_mac.txt
 ```
 
-## INFERENCE
+## Requisites for INFERENCE
 ## Requirements for Inference
 ```
     pip install -r requirements.txt
@@ -33,6 +33,18 @@
 ```
 
 ## Implementation
+
+1. `config.json`의 `data_dir`을 맞게 수정 (대회 주최측 제공 데이터 구조에 맞게 저장한 부모 디렉토리)
+
+2. Train code implementation
+```
+    python train.py
 ```
 
+3. Inference from pretrained weight
 ```
+    python inference.py
+```
+
+4. Inference by using trained model in this implementation
+- 먼저 `inference.py` 내의 68번째줄 pretrained_path의 위치를 

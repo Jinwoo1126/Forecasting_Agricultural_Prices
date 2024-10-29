@@ -77,9 +77,16 @@ def add_fourier_features(df, period=12):
     df['month_cos'] = np.cos(2 * np.pi * df['월'].astype('int') / period)
     return df
 
+
 def price_log(df, col):
     df[f'log_{col}'] = df[col].apply(lambda x:np.log(x))
     return df
+
+
+def price_agg(df, target_col='평균가격(원)'):
+    agg_df = df.groupby(['월','순'])[target_col].agg(['mean', 'std']).reset_index()
+    df = pd.merge(df, agg_df, on=['월','순'], how='left')
+    return agg_df, df
 
 
 def process_time_range(df):
@@ -102,7 +109,6 @@ def process_time_range(df):
     predict_month_str = str(predict_month).zfill(2)
 
     return observed_start, observed_end, predict_year, predict_month_str
-
 
 
 def NMAE(y_pred, y_true):

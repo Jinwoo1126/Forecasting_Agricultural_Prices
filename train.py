@@ -52,6 +52,7 @@ if __name__ == '__main__':
     config = json.load(open('config.json'))
 
     root_path = config['data_dir']
+    # root_path = './data'
 
     train_1 = pd.read_csv(os.path.join(root_path, 'train/train_1.csv'))
     train_2 = pd.read_csv(os.path.join(root_path, 'train/train_2.csv'))
@@ -62,7 +63,7 @@ if __name__ == '__main__':
     ## sorted by YYYYMMSOON
     train_dome = train_dome.sort_values('YYYYMMSOON').reset_index(drop=True)
 
-    prob_dict = Fluctuation_Probability(train_df, config).get_fluctuation_probability()
+    # prob_dict = Fluctuation_Probability(train_df, config).get_fluctuation_probability()
 
 
     ## train
@@ -74,9 +75,9 @@ if __name__ == '__main__':
         '깐마늘(국산)': {'품종명': ['깐마늘(국산)'], '거래단위': '20kg', '등급': '상품'},
         '무': {'품종명': [None], '거래단위': '20키로상자', '등급': '상'},
         '상추': {'품종명': ['청'], '거래단위': '100g', '등급': '상품'},
-        '배추': {'품종명': [None], '거래단위': '10키로망대', '등급': '상'},
         '양파': {'품종명': [None], '거래단위': '1키로', '등급': '상'},
-        '대파(일반)': {'품종명': [None], '거래단위': '1키로단', '등급': '상'}
+        '대파(일반)': {'품종명': [None], '거래단위': '1키로단', '등급': '상'},
+        '배추': {'품종명': [None], '거래단위': '10키로망대', '등급': '상'},
     }
 
     cat_submission_df = submission_df.copy()
@@ -177,7 +178,7 @@ if __name__ == '__main__':
                         print("epoch: {}, Train_NMAE: {:.3f}, Valid_NMAE: {:.3f}".format(epoch, train_loss, valid_loss))
                 loss_list_.append(max_loss.item())
             test_loss_list.append(np.mean(loss_list_))
-        
+     
         
         if item == '감자 수미':
             ## NLinear Model

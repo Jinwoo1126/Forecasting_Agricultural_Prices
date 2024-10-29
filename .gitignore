@@ -6,8 +6,8 @@
 
 
 # pth, pkl
-*.pth
-*.pkl
+# *.pth
+# *.pkl
 
 # pycache
 __pycache__/

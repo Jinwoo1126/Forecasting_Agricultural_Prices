@@ -243,7 +243,7 @@ if __name__ == '__main__':
                     joblib.dump(model, model_save_path)
 
 
-        if item in ['양파', '배', '상추', '대파']:
+        if item in ['양파', '배', '상추', '대파(일반)']:
             # F파
             target_train_df = extract_year_month(target_train_df)
             agg_df, target_train_df = price_agg(target_train_df)

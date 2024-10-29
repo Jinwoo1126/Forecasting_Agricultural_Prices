@@ -168,6 +168,61 @@
                 "early_stopping_rounds" : 50
             }
         },
+        "대파(일반)" : {
+            "Customlinear" : {
+                "ltsf_window_size": 9,
+                "output_step": 3,
+                "individual": true,
+                "num_item": 1,
+                "num_experts":4,
+                "attention_heads":4,
+                "batch_size":4,
+                "epoch": 100,
+                "lr" : 0.01,
+                "kernel_size":9
+            },
+            "Nlinear" : {
+                "ltsf_window_size": 9,
+                "output_step": 3,
+                "individual": true,
+                "num_item": 1,
+                "batch_size":4,
+                "epoch": 100,
+                "lr" : 0.001
+            },
+            "LGBM" : {
+                "learning_rate" : 0.1,
+                "max_depth" : 6,
+                "boosting" : "gbdt",
+                "objective" : "regression",
+                "num_leaves" : 100,
+                "feature_fraction" : 0.8,
+                "bagging_fraction" : 0.8,
+                "bagging_freq" : 5,
+                "seed" : 42,
+                "num_threads" : 8,
+                "verbose" : -1
+            },
+            "XGB" : {
+                "learning_rate" : 0.1,
+                "max_depth" : 6,
+                "objective" : "reg:squarederror",
+                "booster" : "gbtree",
+                "subsample" : 0.8,
+                "colsample_bytree" : 0.8,
+                "seed" : 42,
+                "nthread" : 8,
+                "verbosity" : 0
+            },
+            "CatBoost" : {
+                "learning_rate" : 0.05,
+                "iterations" : 10000,
+                "loss_function" : "RMSE",
+                "random_seed" : 42,
+                "verbose" : false,
+                "early_stopping_rounds" : 50
+            }
+        },
         "배" : {
             "Customlinear" : {
                 "ltsf_window_size": 9,

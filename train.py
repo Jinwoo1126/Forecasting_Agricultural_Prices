@@ -62,9 +62,11 @@ if __name__ == '__main__':
     ## sorted by YYYYMMSOON
     train_dome = train_dome.sort_values('YYYYMMSOON').reset_index(drop=True)
 
-    # prob_dict = Fluctuation_Probability(train_df, config).get_fluctuation_probability()
-
-
+    prob_dict = Fluctuation_Probability(train_df, config).get_fluctuation_probability()
+    
+    os.makedirs(os.path.join(root_path,'saved_model'),exist_ok=True)
+    saved_path = os.path.join(root_path,'saved_model')
+    
     ## train
     filter_conditions = {
         '건고추': {'품종명': ['화건'], '거래단위': '30kg', '등급': '상품'},
@@ -95,9 +97,10 @@ if __name__ == '__main__':
             (train_df['거래단위'] == item_condition['거래단위']) &
             (train_df['등급'] == item_condition['등급'])
             ].copy()
+        item_model_save_path = os.path.join(saved_path,f'{item} weight')
+        os.makedirs(item_model_save_path,exist_ok=True)
 
         if item == '배추':
-            os.makedirs(os.path.join(root_path,'autogluon_result'),exist_ok=True)
             cat_col = ["시점", '품목명', '품종명', '거래단위', '등급','평년 평균가격(원)']
             target_train_df.fillna("None",inplace=True)
             for step in [1,2,3]:
@@ -115,7 +118,7 @@ if __name__ == '__main__':
                         time_limit=240,
                         auto_stack=True,
                             )
-                joblib.dump(model, os.path.join(root_path,'autogluon_result',model_save_path))
+                joblib.dump(model, os.path.join(item_model_save_path, model_save_path))
                 results = model.fit_summary()
                 
         if item in ['건고추', '사과', '깐마늘(국산)']:
@@ -171,7 +174,7 @@ if __name__ == '__main__':
 
                         if valid_loss < max_loss:
                             max_loss = valid_loss
-                            torch.save(n_linear.state_dict(), f"{item}_fold{idx+1}_nlinear_model.pth")
+                            torch.save(n_linear.state_dict(), os.path.join( item_model_save_path, f"{item}_fold{idx+1}_nlinear_model.pth"))
 
                     if epoch % 10 == 0:
                         print("epoch: {}, Train_NMAE: {:.3f}, Valid_NMAE: {:.3f}".format(epoch, train_loss, valid_loss))
@@ -232,7 +235,7 @@ if __name__ == '__main__':
 
                         if valid_loss < max_loss:
                             max_loss = valid_loss
-                            torch.save(n_linear.state_dict(), f"{item}_fold{idx+1}_nlinear_model.pth")
+                            torch.save(n_linear.state_dict(), os.path.join(item_model_save_path, f"{item}_fold{idx+1}_nlinear_model.pth"))
 
                     if epoch % 10 == 0:
                         print("epoch: {}, Train_NMAE: {:.3f}, Valid_NMAE: {:.3f}".format(epoch, train_loss, valid_loss))
@@ -263,7 +266,7 @@ if __name__ == '__main__':
                     cls_rf_model = RandomForest_Forecast(item, config)
                     model = cls_rf_model.train(x_train, y_train)
                     model_save_path = f'{item}_rf_step{step}.pkl'
-                    joblib.dump(model, model_save_path)
+                    joblib.dump(model, os.path.join(item_model_save_path, model_save_path))
 
 
         if item in ['양파', '배', '상추', '대파(일반)']:
@@ -328,7 +331,7 @@ if __name__ == '__main__':
 
                         if valid_nmae < max_loss:
                             max_loss = valid_nmae
-                            torch.save(model.state_dict(), f"{item}_fold{idx+1}_custom_linear_model.pth")
+                            torch.save(model.state_dict(), os.path.join(item_model_save_path, f"{item}_fold{idx+1}_custom_linear_model.pth"))
 
             for step in [1,2,3]:
                 fe_target_train_df = fe_event(target_train_df, item, t=step)
@@ -357,17 +360,17 @@ if __name__ == '__main__':
                     cls_cat_model = CatBoost_Forecast(item, config)
                     cat_model = cls_cat_model.train(x_train, y_train, x_valid, y_valid, cat_col)
                     model_save_path = f'cat_{item}_fold{idx+1}_step{step}.pkl'
-                    joblib.dump(cat_model, model_save_path)
+                    joblib.dump(cat_model, os.path.join(item_model_save_path, model_save_path))
 
                     cls_xgb_model = XGB_Forecast(item, config)
                     xgb_model = cls_xgb_model.train(x_train, y_train, x_valid, y_valid)
                     model_save_path = f'xgb_{item}_fold{idx+1}_step{step}.pkl'
-                    joblib.dump(xgb_model, model_save_path)
+                    joblib.dump(xgb_model, os.path.join(item_model_save_path, model_save_path))
 
                     cls_lgb_model = LGBM_Forecast(item, config)
                     lgb_model = cls_lgb_model.train(x_train, y_train, x_valid, y_valid)
                     model_save_path = f'lgb_{item}_fold{idx+1}_step{step}.pkl'
-                    joblib.dump(lgb_model, model_save_path)
+                    joblib.dump(lgb_model,os.path.join(item_model_save_path,  model_save_path))
 
 
         if item == '무':
@@ -399,4 +402,4 @@ if __name__ == '__main__':
                     cls_cat_model = CatBoost_Forecast(item, config)
                     cat_model = cls_cat_model.train(x_train, y_train, x_valid, y_valid, cat_col)
                     model_save_path = f'{item}_cat_fold{idx+1}_step{step}.pkl'
-                    joblib.dump(cat_model, model_save_path)
+                    joblib.dump(cat_model, os.path.join(item_model_save_path, model_save_path))

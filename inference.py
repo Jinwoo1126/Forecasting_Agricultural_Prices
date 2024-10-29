@@ -315,7 +315,7 @@ if __name__=='__main__':
                     nlinear_prediction = 0
                     for fold in range(n_splits):
                         n_linear = Nlinear(args)
-                        n_linear.load_state_dict(torch.load(f"{item}_fold{fold+1}_nlinear_model.pth", weights_only=True))
+                        n_linear.load_state_dict(torch.load(os.path.join(pretrained_item_path,f"{item}_fold{fold+1}_nlinear_model.pth"), weights_only=True))
                         n_linear.eval()
                         with torch.no_grad():
                             for data, target in test_dl:

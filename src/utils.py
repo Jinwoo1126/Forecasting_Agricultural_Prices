@@ -34,15 +34,6 @@ def process_data(df_1, df_2, target_col='평균가격(원)'):
     return df
 
 
-def sliding_window(data, look_back, n_steps):
-    X, y = [], []
-    for i in range(len(data) - look_back - n_steps + 1):
-        X.append(data[i:(i + look_back)].values.reshape(look_back, 1))
-        y.append(data[(i + look_back):(i + look_back + n_steps)])
-
-    return np.array(X, dtype='float32'), np.array(y, dtype='float32')
-
-
 def extract_year_month(dataframe):
     # 시점 열에서 년도와 월을 추출하는 함수
     def parse_date(s):

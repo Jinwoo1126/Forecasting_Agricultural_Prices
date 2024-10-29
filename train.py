@@ -25,7 +25,6 @@ from src.utils import (
     price_agg,
     price_log,
     add_fourier_features,
-    sliding_window,
     NMAE,
 )
 
@@ -44,6 +43,16 @@ from src.model import (
 set_seed(42)
 warnings.filterwarnings("ignore", category=UserWarning)
 
+def sliding_window(data, look_back, n_steps):
+    X, y = [], []
+    num_features = data.shape[1]  # Get the number of features
+
+    for i in range(len(data) - look_back - n_steps + 1):
+        # Use the correct shape for X based on look_back and num_features
+        X.append(data[i:(i + look_back)].values.reshape(look_back, num_features))
+        y.append(data[(i + look_back):(i + look_back + n_steps)]['log_평균가격(원)'].values)
+
+    return np.array(X, dtype='float32'), np.array(y, dtype='float32')
 
 if __name__ == '__main__':
     config = json.load(open('config.json'))
@@ -95,7 +104,7 @@ if __name__ == '__main__':
             (train_df['등급'] == item_condition['등급'])
             ].copy()
         
-        
+
         if item in ['건고추', '사과', '깐마늘(국산)']:
             ## NLinear Model
             n_splits = 3
@@ -251,8 +260,64 @@ if __name__ == '__main__':
             target_train_df = add_fourier_features(target_train_df)
             target_train_df = price_log(target_train_df, target_col)
             extra_hist_col = ['mean', 'std', 'month_sin', 'month_cos', 'log_평균가격(원)']
-            breakpoint()
-            extra_x_, _= sliding_window(target_train_df[extra_hist_col], 9, 3)
+
+            n_splits = 10
+            kfold = KFold(n_splits=n_splits, random_state=42, shuffle=True)
+            x_, y_ = sliding_window(target_train_df[target_col], 9, 3)
+            loss_list_ = []
+            for idx, (train_index, valid_index) in enumerate(kfold.split(x_)):
+                train_x = x_[train_index]
+                extra_train_x = extra_x_[train_index]
+                train_y = y_[train_index]
+                valid_x = x_[valid_index]
+                extra_valid_x = extra_x_[valid_index]
+                valid_y = y_[valid_index]
+
+                train_ds = Data(train_x, extra_train_x, train_y)
+                train_dl = DataLoader(
+                    train_ds,
+                    batch_size = args.batch_size,
+                    shuffle=True,
+                    worker_init_fn=worker_init_fn,
+                    generator=torch.Generator().manual_seed(42),
+                    drop_last=True
+                    )
+                valid_ds = Data(valid_x, extra_valid_x, valid_y)
+                valid_dl = DataLoader(
+                    valid_ds,
+                    batch_size = valid_x.shape[0],
+                    shuffle=False,
+                    worker_init_fn=lambda worker_id: np.random.seed(42),
+                    generator=torch.Generator().manual_seed(42)
+                    )
+                torch.manual_seed(42)
+                model = custom_linear(args)
+                optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+                max_loss = 999999999
+
+                for epoch in tqdm(range(1, args.epoch+1)):
+                    loss_list = []
+                    model.train()
+
+                    for batch_idx, (data, extra_data, target) in enumerate(train_dl):
+                        optimizer.zero_grad()
+                        output = model(data)
+                        loss = NMAE(output.squeeze(), target)
+                        loss.backward()
+                        optimizer.step()
+                        nmae = NMAE(output.squeeze(), target)
+                        loss_list.append(nmae.item())
+                    train_nmae = np.mean(loss_list)
+
+                    model.eval()
+                    with torch.no_grad():
+                        for batch_idx, (data, extra_data, target) in enumerate(valid_dl):
+                            output = model(data)
+                            valid_nmae = NMAE(output, target.unsqueeze(-1))
+
+                        if valid_nmae < max_loss:
+                            max_loss = valid_nmae
+                            torch.save(model.state_dict(), f"{item}_fold{idx+1}_custom_linear_model.pth")
 
             for step in [1,2,3]:
                 fe_target_train_df = fe_event(target_train_df, item, t=step)

@@ -74,6 +74,40 @@ class Nlinear(torch.nn.Module):
         x = self.dropout(x)
         x = x + seq_last
         return x
+
+
+class custom_linear(torch.nn.Module):
+    def __init__(self, args):
+        super(custom_linear, self).__init__()
+        self.window_size = args.ltsf_window_size
+        self.forcast_size = args.output_step
+        self.individual = args.individual
+        self.channels = args.num_item
+        self.decompsition = series_decomp(args.kernel_size)
+        self.Linear_Seasonal = torch.nn.ModuleList()
+        self.Linear_Trend = torch.nn.ModuleList()
+        for i in range(self.channels):
+            self.Linear_Trend.append(torch.nn.Linear(self.window_size, self.forcast_size))
+            self.Linear_Trend[i].weight = torch.nn.Parameter((1/self.window_size)*torch.ones([self.forcast_size, self.window_size]))
+            self.Linear_Seasonal.append(torch.nn.Linear(self.window_size, self.forcast_size))
+            self.Linear_Seasonal[i].weight = torch.nn.Parameter((1/self.window_size)*torch.ones([self.forcast_size, self.window_size]))
+
+    def forward(self, x):
+        seq_last = x[:,-1:,:].detach()
+        x = x - seq_last
+        trend_init, seasonal_init = self.decompsition(x)
+        trend_init, seasonal_init = trend_init.permute(0,2,1), seasonal_init.permute(0,2,1)
+        trend_output = torch.zeros([trend_init.size(0), trend_init.size(1), self.forcast_size], dtype=trend_init.dtype).to(trend_init.device)
+        seasonal_output = torch.zeros([seasonal_init.size(0), seasonal_init.size(1), self.forcast_size], dtype=seasonal_init.dtype).to(seasonal_init.device)
+
+        for idx in range(self.channels):
+            trend_output[:, idx, :] = self.Linear_Trend[idx](trend_init[:, idx, :])
+            seasonal_output[:, idx, :] = self.Linear_Seasonal[idx](seasonal_init[:, idx, :])
+
+        x = seasonal_output + trend_output
+        x = x + seq_last
+
+        return x
     
 
 class LGBM_Forecast:

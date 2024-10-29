@@ -132,27 +132,33 @@ if __name__=='__main__':
                     
                     submission_df.loc[submission_df['시점'].str.startswith(timing), item] = cur_preds
 
-                
+                if item == '무':
+                    n_splits = 10
+                    # CAT
+                    fe_target_test_df = fe_event(target_test_df, item)
+                    fe_target_test_df = pd.merge(fe_target_test_df, agg_df, on=['월','순'], how='left')
+
+                    if 'event' in fe_target_test_df.columns:
+                        fe_target_test_df['event'] = fe_target_test_df['event'].astype('int')
+
+                    cat_pred = []
+
+                    for step in [1,2,3]:
+                        cat_pred_ = 0
+                        for i in range(1, n_splits+1):
+                            model = joblib.load(os.path.join(pretrained_item_path,f'{item}_cat_fold{i}_step{step}.pkl'))
+                            cat_pred_ += np.expm1(model.predict(fe_target_test_df.loc[0:, tree_feature])[0])/n_splits
+
+                        cat_pred.append(cat_pred_)  
+                    submission_df.loc[submission_df['시점'].str.startswith(timing), item] = cat_pred
+
                 item_ensemble_weight_dict={
-                    '상추': [0,0,0.7,0.3],
                     '배': [0., 0., 0.65, 0.35],
                     '양파': [0.3, 0.0, 0.15, 0.55],
                     '대파(일반)':[0.1, 0.1, 0.4, 0.4],
-                    '무':[1.,0.,0.,0],
+                    '상추': [0, 0.45, 0.21, 0.34],
                 }
-                if item in ['상추','배','양파','대파(일반)','무']:
-                    args = EasyDict({
-                        'ltsf_window_size': 9,
-                        'output_step': 3,
-                        'individual': True,
-                        'num_item': 1,
-                        'num_experts':4,
-                        'attention_heads':4,
-                        'batch_size':4,
-                        'epoch': 100,
-                        'lr' : 0.01,
-                        'kernel_size':9
-                    })
+                if item in ['상추','배','양파','대파(일반)']:
                     item_ensemble_weight_list = item_ensemble_weight_dict[item]
 
                     extra_hist_col = ['mean', 'std', 'month_sin', 'month_cos', 'log_평균가격(원)']
@@ -182,6 +188,18 @@ if __name__=='__main__':
 
                     # Nlinear
                     if item_ensemble_weight_list[3] > 0.:
+                        args = EasyDict({
+                            'ltsf_window_size': 9,
+                            'output_step': 3,
+                            'individual': True,
+                            'num_item': 1,
+                            'num_experts':4,
+                            'attention_heads':4,
+                            'batch_size':4,
+                            'epoch': 100,
+                            'lr' : 0.01,
+                            'kernel_size':9
+                        })
                         test_x, test_y = sliding_window(target_test_df[target_col], 9, 0)
                         test_ds = Data(test_x, test_y)
 
@@ -234,8 +252,7 @@ if __name__=='__main__':
                         for step in [1,2,3]:
                             cat_pred_ = 0
                             for i in range(1, n_splits+1):
-                                if item == '무': model = joblib.load(os.path.join(pretrained_item_path,f'{item}_cat_fold{i}_step{step}.pkl'))
-                                else: model = joblib.load(os.path.join(pretrained_item_path,f'cat_{item}_fold{idx+1}_step{step}.pkl'))
+                                model = joblib.load(os.path.join(pretrained_item_path,f'cat_{item}_fold{idx+1}_step{step}.pkl'))
                                 cat_pred_ += np.expm1(model.predict(fe_target_test_df.loc[0:, tree_feature])[0])/n_splits
                             cat_pred.append(cat_pred_)
                         cat_pred = np.array(cat_pred)
@@ -341,4 +358,4 @@ if __name__=='__main__':
             # inference
             print(file, "Done")
             # break
-    submission_df.to_csv('./complete_submission.csv')
+    submission_df.to_csv('./complete_submission.csv',index=False)

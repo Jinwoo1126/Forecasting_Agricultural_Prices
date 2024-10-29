@@ -4,13 +4,15 @@
 - 현재 디렉토리에 아래와 같이 저장
 ```
     root_path ('./')
-    - train
-    - ㄴ ...
-    - test
-    - ㄴ ...
-    - sample_submission.csv
-    - inference.py
-    - train.py
+
+    .
+    ./train
+      ㄴ ...
+    ./test
+      ㄴ ...
+    .sample_submission.csv
+    .inference.py
+    .train.py
 
 ```
 ## 개발환경

@@ -1,5 +1,10 @@
+import numpy as np
 import pandas as pd
+
 from scipy.stats import poisson
+
+from src.utils import extract_year_month
+
 
 class Fluctuation_Probability:
     def __init__(self, df, config):

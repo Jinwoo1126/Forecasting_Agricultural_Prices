@@ -72,7 +72,7 @@ if __name__=='__main__':
     train_1 = pd.read_csv(os.path.join(train_df_path,'train_1.csv'))
     train_2 = pd.read_csv(os.path.join(train_df_path,'train_2.csv'))
     train_df = process_data(train_1, train_2)
-    # prob_dict = Fluctuation_Probability(train_df, config).get_fluctuation_probability()
+    prob_dict = Fluctuation_Probability(train_df, config).get_fluctuation_probability()
 
     # 모델 미리 로딩하여 저장
     model_cache = {}

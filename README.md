@@ -62,9 +62,9 @@
     python train.py
 ```
 
-3. Inference from pretrained weight
+3. Inference from pretrained weight (반드시 inference_3으로 실행시켜주세요!)
 ```
-    python inference.py
+    python inference_3.py
 ```
 
 4. Inference by using trained model in this implementation

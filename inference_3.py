@@ -350,7 +350,7 @@ if __name__=='__main__':
                         for step in [1,2,3]:
                             xgb_pred_ = 0
                             model = joblib.load(os.path.join(pretrained_item_path,f'xgb_{item}_fold{idx+1}_step{step}.pkl'))
-                            xgb_pred_ += np.expm1(model_dict[item][f'xgb_fold{i}_step{step}'].predict(xgb.DMatrix(data=pd.get_dummies(fe_target_test_df.loc[0:, tree_feature])))[0])/n_splits
+                            xgb_pred_ += np.expm1(model_dict[item][f'xgb_fold{i}_step{step}'].predict(xgb.DMatrix(data=pd.get_dummies(fe_target_test_df.loc[0:, tree_feature])))[0])
                             xgb_pred.append(xgb_pred_)
                         xgb_pred = np.array(xgb_pred)
                     else:
@@ -362,7 +362,7 @@ if __name__=='__main__':
                         for step in [1,2,3]:
                             lgb_pred_ = 0
                             model = joblib.load(os.path.join(pretrained_item_path,f'lgb_{item}_fold{idx+1}_step{step}.pkl'))
-                            lgb_pred_ += np.expm1(model_dict[item][f'lgb_fold{i}_step{step}'].predict(fe_target_test_df.loc[0:, tree_feature])[0])/n_splits
+                            lgb_pred_ += np.expm1(model_dict[item][f'lgb_fold{i}_step{step}'].predict(fe_target_test_df.loc[0:, tree_feature])[0])
                             lgb_pred.append(lgb_pred_)
                         lgb_pred = np.array(lgb_pred)
                     else:
@@ -374,7 +374,7 @@ if __name__=='__main__':
                         for step in [1,2,3]:
                             cat_pred_ = 0
                             model = joblib.load(os.path.join(pretrained_item_path,f'cat_{item}_fold{idx+1}_step{step}.pkl'))
-                            cat_pred_ += np.expm1(model_dict[item][f'cat_fold{i}_step{step}'].predict(fe_target_test_df.loc[0:, tree_feature])[0])/n_splits
+                            cat_pred_ += np.expm1(model_dict[item][f'cat_fold{i}_step{step}'].predict(fe_target_test_df.loc[0:, tree_feature])[0])
                             cat_pred.append(cat_pred_)
                         cat_pred = np.array(cat_pred)
                     else:
